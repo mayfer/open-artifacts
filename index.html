@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+    <title>Load String into Iframe</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .logo {
+            font-size: 30px;
+            margin-bottom: 3px;
+            padding-right: 10px;
+        }
+
+        .credits {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2px;
+
+            font-family: Arial, sans-serif;
+        }
+
+        .form-group label {
+            width: 150px;
+            margin-right: 10px;
+            text-align: right;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            flex: 1;
+            padding: 2px 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+        .form-group button {
+            margin-left: 160px;
+            /* Ensure it aligns with the input fields */
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        .form-group button:hover {
+            background-color: #45a049;
+        }
+
+
+        .tab-section {
+            display: none;
+            height: 100%;
+        }
+
+        .tab-section.current {
+            display: block;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: left;
+            border-bottom: 1px solid #ccc;
+            padding: 0 50px;
+            margin-bottom: 20px;
+            padding-top: 10px;
+            background-color: #f1f1f1;
+        }
+
+        .tab-btn {
+            padding: 0px 20px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background-color: #e3e2e1;
+            cursor: pointer;
+            margin-right: 2px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+
+        .tab-btn.current {
+            background-color: #fff;
+            border-bottom: none;
+            position: relative;
+            top: 1px;
+        }
+
+        #tab-code {
+            padding: 20px;
+        }
+
+        #tab-code pre {
+            padding: 20px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="tabs">
+            <div class='logo'> OpenArtifacts</div>
+            <button class="tab-btn current" id="button-tab-form" onclick="openTab('tab-form')">Form</button>
+            <button class="tab-btn" id="button-tab-code" onclick="openTab('tab-code')">Code</button>
+            <button class="tab-btn" id="button-tab-app" onclick="openTab('tab-app')">App</button>
+            <div class="credits">
+                by <a href="https://twitter.com/mayfer">murat</a>.<br />
+                clone on <a href="https://github.com/mayfer/open-artifacts">github</a>
+            </div>
+        </div>
+
+        <div class="tab-section current" id="tab-form">
+            <form id="api-form">
+                <div class="form-group">
+                    <label for="api-endpoint">API Endpoint:</label>
+                    <input type="text" id="api-endpoint" name="api-endpoint" value="https://api.openai.com/v1/chat/completions">
+                </div>
+                <div class="form-group">
+                    <label for="api-key">API key:</label>
+                    <input type="password" id="key" name="api-key" value="" placeholder="sk-xxx-yyyyyyyzzzzzzzz" />
+                </div>
+                <div class="form-group">
+                    <label for="model-name">Model Name:</label>
+                    <input type="text" id="model-name" name="model-name" value="gpt-4o">
+                </div>
+                <div class="form-group">
+                    <label for="prompt">App Description:</label>
+                    <textarea id="prompt" name="prompt" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit">Submit</button>
+                </div>
+
+            </form>
+        </div>
+        <div class="tab-section" id="tab-code">
+            <pre id="code"></pre>
+        </div>
+        <div class="tab-section" id="tab-app">
+            <iframe></iframe>
+        </div>
+    </div>
+    <script>
+
+        // tab functionality
+        function openTab(tabId) {
+            const tabBtn = document.getElementById(`button-${tabId}`);
+            const tabSection = document.getElementById(tabId);
+            // remove from all tabs
+            document.querySelectorAll('.tab-btn').forEach(tabBtn => {
+                tabBtn.classList.remove('current');
+            });
+            document.querySelectorAll('.tab-section').forEach(tabSection => {
+                tabSection.classList.remove('current');
+            });
+            tabBtn.classList.add('current');
+            tabSection.classList.add('current');
+        }
+
+
+        const form = document.getElementById('api-form');
+
+        function saveToLocalStorage() {
+            const formData = {};
+            form.querySelectorAll('input, textarea').forEach(element => {
+                formData[element.name] = element.value;
+            });
+            localStorage.setItem('apiFormData', JSON.stringify(formData));
+        }
+
+        function loadFromLocalStorage() {
+            const storedData = localStorage.getItem('apiFormData');
+            if (storedData) {
+                const formData = JSON.parse(storedData);
+                Object.keys(formData).forEach(key => {
+                    const element = form.elements[key];
+                    if (element) {
+                        element.value = formData[key];
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('load', loadFromLocalStorage);
+
+        form.addEventListener('input', saveToLocalStorage);
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            saveToLocalStorage();
+        });
+
+
+
+
+        // submit form on enter key press, except shift+enter
+        form.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const prompt = form.prompt.value;
+            // empty prompt
+            // form.prompt.value = '';
+
+            const fullprompt = `You are an expert front-end developer. Don't use css files, only javascript/react (jsx). You can use styled-components if you want styling. Generate a React component (called App) that follows the following specifications: ${prompt}\n\nQuickly list methods you'll likely need for the component(s) and then immediately generate the code in a single code block. Once code is generated, no further explanation is required. Make sure all libraries are imported (i.e. it's common to forget three.js addons), or module addons registered if needed (such as chart.js registrables).`;
+
+            const apiKey = document.querySelector('#key').value;
+
+            const output = document.querySelector('#code');
+
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o',  // Ensure the model name is correct
+                    messages: [{ role: 'user', content: fullprompt }],
+                    stream: true  // Enable streaming
+                })
+            });
+
+            if (response.ok) {
+                openTab('tab-code');
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let done = false;
+                let responseText = '';
+
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    const chunk = decoder.decode(value, { stream: true });
+
+                    // Assuming chunk contains a JSON string, process it
+                    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+                    for (const line of lines) {
+                        let json;
+
+                        if (line.startsWith('data: [DONE]')) {
+                            done = true;
+                            break;
+                        }
+                        try {
+                            json = JSON.parse(line.replace(/^data: /, ''));
+                        } catch (error) {
+                            console.error('Error parsing JSON:', line, error);
+                            continue;
+                        }
+                        if (json.choices && json.choices.length > 0) {
+                            const content = json.choices[0].delta.content;
+                            if (content) {
+                                output.textContent += content;
+                                responseText += content;
+                            }
+                        }
+                    }
+                }
+
+                // strip ```jsx and ``` from the response
+                console.log(responseText);
+                // responseText = responseText.replace(/```\w+\s*/g, '').replace(/```\s*$/g, '');
+
+                const regex = /```(?:\w+\n)?([\s\S]*?)```/g;
+                let matches;
+                while ((matches = regex.exec(responseText)) !== null) {
+                    responseText = matches[1].trim();
+                }
+
+                console.log("//////////////////////");
+                console.log(responseText);
+                renderGeneratedHtml(responseText);
+                openTab('tab-app');
+
+
+            } else {
+                output.textContent = 'Error: ' + response.statusText;
+            }
+
+
+        });
+
+
+        const htmlWrapper = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+    <title>React TypeScript Without Bundler</title>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    <\/script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/plain" id="jsx-code">
+        import ReactDOM from 'react-dom';
+
+        [[APP_CODE]]
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    <\/script>
+    <script>
+        // Get the JSX code
+        const jsxCode = document.getElementById('jsx-code').textContent;
+
+        // Transpile JSX to JavaScript using Babel
+        const compiledCode = Babel.transform(jsxCode, { presets: ['react'] }).code;
+
+        // Log the compiled JavaScript code to the console
+        console.log(compiledCode);
+
+        // Create a new script element and execute the compiled code
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.text = compiledCode;
+        document.body.appendChild(script);
+    <\/script>
+</body>
+</html>
+`;
+
+        function renderGeneratedHtml(appHtml) {
+            const htmlContent = htmlWrapper.replace('[[APP_CODE]]', appHtml);
+
+            const htmlContentUpdatedImports = htmlContent.replace(/import\s+.*?\s+from\s+['"]([^'"]+)['"]/g, (match, p1) => {
+                if (p1.startsWith('https://')) return match;
+                if (p1.startsWith('three/')) return match;
+                if (p1 == 'three') return match;
+                return match.replace(p1, `https://cdn.skypack.dev/${p1}`);
+            });
+
+            // Create a Blob from the HTML content
+            const blob = new Blob([htmlContentUpdatedImports], { type: 'text/html' });
+
+            // Create a temporary URL for the Blob
+            const url = URL.createObjectURL(blob);
+
+            // Get the iframe element and set its src to the temporary URL
+            const iframeElem = document.querySelector('iframe');
+            iframeElem.src = url;
+
+            // Revoke the object URL after the iframe has loaded the content to free up memory
+            iframeElem.onload = () => {
+                // URL.revokeObjectURL(url);
+            };
+        }
+
+    </script>
+</body>
+
+</html>
