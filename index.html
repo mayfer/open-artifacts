@@ -48,7 +48,7 @@
 
         .form-group {
             display: flex;
-            align-items: center;
+            align-items: top;
             margin-bottom: 5px;
             font-family: Arial, sans-serif;
         }
@@ -56,6 +56,7 @@
         .form-group label {
             width: 150px;
             margin-right: 10px;
+            margin-top: 3px;
             text-align: right;
         }
 
@@ -67,10 +68,13 @@
             border-bottom: 1px solid #ddd;
             border-radius: 4px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            color: #333;
         }
 
         .form-group textarea {
             resize: vertical;
+            font-size: 14px;
+            color: #000;
         }
 
         .form-group button {
@@ -131,6 +135,11 @@
         #tab-code pre {
             margin: 10px;
             padding: 10px;
+
+            width: calc(100% - 40px);
+            height: calc(100% - 50px);
+            overflow: auto;
+            
             background-color: #f1f1f1;
             border-radius: 5px;
             border: 1px solid #ccc;
@@ -172,7 +181,7 @@
                 </div>
                 <div class="form-group">
                     <label for="prompt">App Description:</label>
-                    <textarea id="prompt" name="prompt" rows="4"></textarea>
+                    <textarea id="prompt" name="prompt" rows="4" placeholder="Describe your front-end app in a few sentences"></textarea>
                 </div>
                 <div class="form-group">
                     <button type="submit">Submit</button>
@@ -258,20 +267,23 @@
             const fullprompt = `You are an expert front-end developer. Don't use css files, only javascript/react (jsx). You can use styled-components if you want styling. Generate a React component (called App) that follows the following specifications: ${prompt}\n\nQuickly list methods you'll likely need for the component(s) and then immediately generate the code in a single code block. Once code is generated, no further explanation is required. Make sure all libraries are imported (i.e. it's common to forget three.js addons), or module addons registered if needed (such as chart.js registrables).`;
 
             const apiKey = document.querySelector('#key').value;
-
+            const apiEndpoint = document.querySelector('#api-endpoint').value;
+            const modelName = document.querySelector('#model-name').value;
             const output = document.querySelector('#code');
 
 
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch(apiEndpoint, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o',  // Ensure the model name is correct
+                    model: modelName,
                     messages: [{ role: 'user', content: fullprompt }],
-                    stream: true  // Enable streaming
+                    max_tokens: 4096,
+                    temperature: 0,
+                    stream: true
                 })
             });
 
@@ -307,6 +319,8 @@
                             if (content) {
                                 output.textContent += content;
                                 responseText += content;
+                                // scroll to bottom
+                                output.scrollTop = output.scrollHeight;
                             }
                         }
                     }
