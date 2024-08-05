@@ -21,9 +21,9 @@
         }
 
         .credits {
-            position: absolute;
-            top: 5px;
-            right: 10px;
+            text-align: right;
+            font-size: 20px;
+            line-height: 30px;
         }
 
         a, a:visited {
@@ -159,10 +159,6 @@
             <button class="tab-btn current" id="button-tab-form" onclick="openTab('tab-form')">Form</button>
             <button class="tab-btn" id="button-tab-code" onclick="openTab('tab-code')">Code</button>
             <button class="tab-btn" id="button-tab-app" onclick="openTab('tab-app')">App</button>
-            <div class="credits">
-                by <a href="https://x.com/mayfer">murat</a><br />
-                clone on <a href="https://github.com/mayfer/open-artifacts">github</a>
-            </div>
         </div>
 
         <div class="tab-section current" id="tab-form">
@@ -186,8 +182,11 @@
                 <div class="form-group">
                     <button type="submit">Submit</button>
                 </div>
-
             </form>
+            <div class="credits">
+                by <a href="https://x.com/mayfer">murat</a><br />
+                clone on <a href="https://github.com/mayfer/open-artifacts">github</a>
+            </div>
         </div>
         <div class="tab-section" id="tab-code">
             <pre id="code"></pre>
