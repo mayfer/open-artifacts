@@ -271,6 +271,8 @@
             const modelName = document.querySelector('#model-name').value;
             const output = document.querySelector('#code');
 
+            output.textContent = '';
+            openTab('tab-code');
 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
@@ -288,7 +290,6 @@
             });
 
             if (response.ok) {
-                openTab('tab-code');
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let done = false;
