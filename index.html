@@ -204,6 +204,14 @@
             overflow-y: scroll;
             overflow-x: hidden;
         }
+
+        .about-container {
+            max-width: 800px;
+            margin: 0 auto;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            font-size: 16px;
+        }
     </style>
 </head>
 
@@ -271,6 +279,19 @@
         </div>
         <div class="tab-section" id="tab-app">
             <iframe></iframe>
+        </div>
+        <div class="tab-section" id="tab-about">
+            <div class="about-container">
+                <p>
+                    OpenArtifacts is a clone of Antrhopic's Claude Artifacts which immediately runs the generated code in the browser.
+                </p>
+                <p>
+                    While the Claude version relies on a server to bundle the code, OpenArtifacts runs the bundler (esbuild-wasm) straight in the browser, and uses CDNs for all module dependencies instead of npm-style installers.
+                </p>
+                <p>
+                    The result is a single html file that can be opened in any browser, and the code is immediately runnable, even over file:// protocol.
+                </p>
+            </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0"></script>
