@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>esbuild</title>
+</head>
+
+<body>
+    <pre></pre>
+    <script type="module">
+        import esbuild from 'https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0/+esm'
+
+
+        // save text to blob file
+        const blob = new Blob(["console.log('hello world')"], { type: 'text/javascript' });
+
+        async function fetchPackage(url) {
+            const response = await fetch(url);
+            return response.text();
+        }
+
+
+        (async () => {
+            await esbuild.initialize({ wasmURL: 'https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0/esbuild.wasm' })
+
+            const packageToBundle = `
+import React from 'react';
+import { TextField, Button, Box } from '@mui/material';
+
+const SmallForm = () => {
+  const [name, setName] = React.useState('');
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    alert(\`Submitted name: \${name}\`); 
+  };
+
+  return (
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{ display: 'flex', flexDirection: 'column', width: '200px', margin: '0 auto' }}
+    >
+      <TextField
+        label="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        variant="outlined"
+        margin="normal"
+        size="small"
+      />
+      <Button type="submit" variant="contained" color="primary">
+        Submit
+      </Button>
+    </Box>
+  );
+};
+
+export default SmallForm;
+            `
+
+            // Define a plugin to handle virtual files
+            const filesPlugin = {
+                name: 'custom-plugin',
+                setup(build) {
+                    // build.onResolve({ filter: /^\.\/math$/ }, () => {
+                    //     return { path: 'math', namespace: 'virtual' };
+                    // });
+
+                    // build.onLoad({ filter: /.*/, namespace: 'virtual' }, () => {
+                    //     return { contents: mathCode, loader: 'js' };
+                    // });
+
+                    // Intercept import paths
+                    build.onResolve({ filter: /.*/ }, args => {
+                        // For packages, use skypack URL
+                        if (!args.path.startsWith('http') && !args.path.startsWith('.')) {
+                            // return { path: `https://cdn.skypack.dev/${args.path}`, namespace: 'skypack' };
+                            if(args.path.startsWith('/')) {
+                                return { path: `https://cdn.jsdelivr.net${args.path}`, namespace: 'cdn' };
+                            } else {
+                                return { path: `https://cdn.jsdelivr.net/npm/${args.path}/+esm`, namespace: 'cdn' };
+                            }
+                        }
+                        // For relative paths, resolve based on the origin URL
+                        if (args.path.startsWith('.')) {
+                            return {
+                                path: new URL(args.path, args.importer).toString(),
+                                namespace: 'cdn'
+                            };
+                        }
+                        return { path: args.path, namespace: 'cdn' };
+                    });
+
+                    // Load and transform content
+                    build.onLoad({ filter: /.*/, namespace: 'cdn' }, async args => {
+                        const contents = await fetchPackage(args.path);
+                        return {
+                            contents,
+                            loader: 'js'
+                        };
+                    });
+
+                },
+            };
+
+            try {
+                // Build the code from the string
+                const result = await esbuild.build({
+                    stdin: {
+                        contents: packageToBundle,
+                        resolveDir: '', // Directory to resolve relative paths
+                        loader: 'jsx',          // Loader type for the content
+                    },
+                    outfile: 'out.js',       // Output file
+                    bundle: true,            // Bundle all dependencies
+                    format: 'cjs',           // Output format
+                    platform: 'browser',        // Platform target (node, browser, etc.)
+                    plugins: [filesPlugin], // Include the virtual files plugin
+                    write: false,
+                })
+
+                console.log(result);
+
+                // result.outputFiles contains the generated code
+                const output = result.outputFiles[0].text;
+                console.log('Build successful');
+                console.log(output);
+            } catch (error) {
+                console.error('Build failed:', error);
+            } finally {
+                esbuild.stop();
+            }
+
+        })()
+    </script>
+</body>
+
+</html>
