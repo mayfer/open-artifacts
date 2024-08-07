@@ -25,9 +25,16 @@
             text-align: right;
             font-size: 20px;
             line-height: 30px;
+            background-color: #e9f8ff;
+            float: right;
+            display: block;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 50px rgb(124, 151, 187);
         }
 
-        a, a:visited {
+        a,
+        a:visited {
             color: #105c64;
         }
 
@@ -95,7 +102,9 @@
 
         .tab-section {
             display: none;
-            height: 100%;
+            position: relative;
+            flex-grow: 1;
+            overflow-y: auto;
         }
 
         .tab-section.current {
@@ -103,6 +112,7 @@
         }
 
         .tabs {
+            flex-shrink: 0;
             display: flex;
             justify-content: left;
             border-bottom: 1px solid #ccc;
@@ -132,22 +142,51 @@
             top: 1px;
         }
 
-        #tab-code pre {
-            margin: 10px;
-            padding: 10px;
-
-            width: calc(100% - 40px);
-            height: calc(100% - 50px);
-            overflow: auto;
-            
-            background-color: #f1f1f1;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
         #tab-form {
             padding: 20px;
+        }
+
+
+
+        .files-container {
+            display: flex;
+            height: calc(100% - 20px);
+            margin: 0;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+
+        }
+
+        .files-sidebar {
+            width: 200px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .files-sidebar ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .files-sidebar li {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .files-sidebar li.current {
+            background-color: #ddd;
+        }
+
+        .files-sidebar li:hover {
+            outline: 1px solid #ccc;
+        }
+
+        .file-content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -155,10 +194,11 @@
 <body>
     <div class="container">
         <div class="tabs">
-            <div class='logo'> OpenArtifacts</div>
+            <div class='logo'> OpenArtifacts </div>
             <button class="tab-btn current" id="button-tab-form" onclick="openTab('tab-form')">Form</button>
             <button class="tab-btn" id="button-tab-code" onclick="openTab('tab-code')">Code</button>
             <button class="tab-btn" id="button-tab-app" onclick="openTab('tab-app')">App</button>
+            <button class="tab-btn" id="button-tab-about" onclick="openTab('tab-about')">?</button>
         </div>
 
         <div class="tab-section current" id="tab-form">
@@ -173,7 +213,8 @@
                 </div>
                 <div class="form-group">
                     <label for="api-endpoint">API Endpoint:</label>
-                    <input type="text" id="api-endpoint" name="api-endpoint" value="https://api.openai.com/v1/chat/completions">
+                    <input type="text" id="api-endpoint" name="api-endpoint"
+                        value="https://api.openai.com/v1/chat/completions">
                 </div>
                 <div class="form-group">
                     <label for="api-key">API key:</label>
@@ -185,7 +226,8 @@
                 </div>
                 <div class="form-group">
                     <label for="prompt">App Description:</label>
-                    <textarea id="prompt" name="prompt" rows="4" placeholder="Describe your front-end app in a few sentences"></textarea>
+                    <textarea id="prompt" name="prompt" rows="4"
+                        placeholder="Describe your front-end app in a few sentences"></textarea>
                 </div>
                 <div class="form-group">
                     <button type="submit">Submit</button>
@@ -197,12 +239,22 @@
             </div>
         </div>
         <div class="tab-section" id="tab-code">
-            <pre id="code"></pre>
+            <div class="files-container">
+                <div class="files-sidebar">
+                    <ul id="files-list">
+                    </ul>
+                </div>
+                <div class="file-content">
+                    <pre><code id="file-content"></code></pre>
+                </div>
+            </div>
+
         </div>
         <div class="tab-section" id="tab-app">
             <iframe></iframe>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0"></script>
     <script>
 
         function openTab(tabId) {
@@ -275,19 +327,177 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const prompt = form.prompt.value;
-            // empty prompt
-            // form.prompt.value = '';
+            const iframeElem = document.querySelector('iframe');
+            iframeElem.src = '';
 
-            const fullprompt = `You are an expert front-end developer. Don't use css files, only javascript/react (jsx). You can use styled-components if you want styling. Generate a React component (called App) that follows the following specifications: ${prompt}\n\nQuickly list methods you'll likely need for the component(s) and then immediately generate the code in a single code block. Once code is generated, no further explanation is required. Make sure all libraries are imported (i.e. it's common to forget three.js addons), or module addons registered if needed (such as chart.js registrables).`;
+            const prompt = form.prompt.value;
+
+            const fullprompt = `You are an expert front-end developer. Don't use css files, only javascript/react (jsx). You can use styled-components if you want styling. Generate a React component (called App, and render into div #root) that follows the following specifications: ${prompt}\n\nQuickly list methods you'll likely need for the component(s) and then immediately generate the code in single or multiple code blocks. Before each code block, name the file in square brackes like this:
+[FILENAME: file.js]
+\`\`\`javascript ...
+
+Other notes:
+* The entry point is index.jsx
+* Once code is generated, no further explanation is required.
+* If using three.js, use appropriate device pixel ratio
+* Make sure all libraries are imported (i.e. it's common to forget three.js addons), or module addons registered if needed (such as chart.js registrables)`;
 
             const apiKey = document.querySelector('#key').value;
             const apiEndpoint = document.querySelector('#api-endpoint').value;
             const modelName = document.querySelector('#model-name').value;
-            const output = document.querySelector('#code');
+            const output = document.querySelector('#file-content');
+
+            let currentFileName = "README.md";
+            let accumulatedContent = '';
+            let accumulatorState = "WAITING_FOR_FILENAME";
+            const fileContents = {};
 
             output.textContent = '';
             openTab('tab-code');
+
+            async function processStream(response, output) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let responseText = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    ({ buffer, responseText } = processBuffer(buffer, output, responseText));
+                }
+
+                // Handle any remaining data in the buffer
+                processChunk(buffer.trim(), output, responseText);
+
+                return responseText;
+            }
+
+            function processBuffer(buffer, output, responseText) {
+                while (true) {
+                    const boundary = buffer.indexOf('\n');
+                    if (boundary === -1) break;
+                    const chunk = buffer.slice(0, boundary).trim();
+                    buffer = buffer.slice(boundary + 1);
+                    ({ responseText } = processChunk(chunk, output, responseText));
+                }
+
+                return { buffer, responseText };
+            }
+
+            function processChunk(chunk, output, responseText) {
+                if (chunk.startsWith('data: ')) {
+                    const dataStr = chunk.slice(6).trim();
+                    if (dataStr !== '[DONE]') {
+                        try {
+                            const json = JSON.parse(dataStr);
+                            if (json.choices && json.choices.length > 0) {
+                                const content = json.choices[0].delta.content;
+                                if (content) {
+                                    accumulatedContent += content;
+
+                                    responseText += content;
+                                }
+
+
+                                if (accumulatorState === "WAITING_FOR_CODE_BLOCK_START") {
+                                    console.log("accumulatorState WAITING_FOR_CODE_BLOCK_START");
+                                    let tickmatch = accumulatedContent.match(/^```\w+$/gm);
+                                    if (tickmatch) {
+                                        console.log("accumulatorState IN_CODE_BLOCK", currentFileName, tickmatch[0]);
+                                        accumulatorState = "IN_CODE_BLOCK";
+                                        accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(tickmatch[0]) + tickmatch[0].length).trim();
+                                    }
+                                }
+
+                                if (accumulatorState === "IN_CODE_BLOCK") {
+                                    if (!fileContents[currentFileName]) fileContents[currentFileName] = '';
+                                    fileContents[currentFileName] += accumulatedContent;
+                                    const endmatch = fileContents[currentFileName].match(/^```$/gm);
+                                    if (endmatch) {
+                                        console.log("accumulatorState END_OF_CODE_BLOCK", currentFileName);
+                                        accumulatorState = "WAITING_FOR_FILENAME";
+                                        const [preticks, postticks] = fileContents[currentFileName].split(endmatch[0], 2);
+                                        fileContents[currentFileName] = preticks;
+                                        output.textContent = fileContents[currentFileName];
+                                        accumulatedContent = postticks;
+                                    } else {
+                                        output.textContent += accumulatedContent;
+                                        accumulatedContent = '';
+                                    }
+                                    // scroll to bottom
+                                    // output.scrollTop = output.scrollHeight;
+                                }
+                                if (accumulatorState === "WAITING_FOR_FILENAME") {
+                                    // console.log(accumulatedContent);
+                                    if (accumulatedContent.match(/\[FILENAME:\s*(.+?)\]/)) {
+                                        const fileNameMatches = Array.from(accumulatedContent.matchAll(/\[FILENAME:\s*(.+?)\]/g));
+                                        const lastFileName = fileNameMatches[fileNameMatches.length - 1];
+                                        if (currentFileName !== lastFileName[1]) {
+                                            console.log("filename changed", currentFileName, lastFileName[1]);
+                                            // accumulatedContent = '';
+                                            // remove everything up to and including [FILENAME: <filename>]
+                                            accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(lastFileName[0]) + lastFileName[0].length);
+                                            accumulatorState = "WAITING_FOR_CODE_BLOCK_START";
+                                            output.textContent = '';
+                                            currentFileName = lastFileName[1];
+                                            const fileList = document.getElementById('files-list');
+                                            fileList.querySelectorAll('li').forEach(li => {
+                                                li.classList.remove('current');
+                                            });
+                                            const fileItem = document.createElement('li');
+                                            fileItem.textContent = currentFileName;
+                                            fileItem.classList.add('current');
+                                            fileItem.addEventListener('click', function (e) {
+                                                const filename = e.target.textContent;
+                                                const fileList = document.getElementById('files-list');
+                                                fileList.querySelectorAll('li').forEach(li => {
+                                                    li.classList.remove('current');
+                                                });
+                                                e.target.classList.add('current');
+                                                output.textContent = fileContents[filename];
+                                            });
+                                            fileList.appendChild(fileItem);
+                                        }
+                                    }
+                                }
+
+                            }
+                        } catch (e) {
+                            console.error('Error parsing JSON:', e);
+                        }
+                    }
+                }
+                return { responseText };
+            }
+
+            function extractFileContents(text) {
+                const fileMap = {}
+                const regex = /\[FILENAME:\s*(.+?)\]\s*```(\w*)\n([\s\S]*?)```/g;
+                let match;
+
+                while ((match = regex.exec(text)) !== null) {
+                    const [, filename, language, content] = match;
+                    fileMap[(filename.startsWith("/") ? "" : "/") + filename.trim()] = content.trim();
+                }
+
+                return fileMap;
+            }
+
+            async function handleResponse(response, output) {
+                if (response.ok) {
+                    const responseText = await processStream(response, output);
+                    const fileContents = extractFileContents(responseText);
+
+                    console.log(fileContents);
+
+                    renderGeneratedApp(fileContents);
+                    openTab('tab-app');
+                } else {
+                    output.textContent = 'Error: ' + response.statusText;
+                }
+            }
 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
@@ -304,140 +514,190 @@
                 })
             });
 
-            if (response.ok) {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let done = false;
-                let responseText = '';
-
-                while (!done) {
-                    const { value, done: readerDone } = await reader.read();
-                    done = readerDone;
-                    const chunk = decoder.decode(value, { stream: true });
-
-                    const lines = chunk.split('\n').filter(line => line.trim() !== '');
-                    for (const line of lines) {
-                        let json;
-
-                        if (line.startsWith('data: [DONE]')) {
-                            done = true;
-                            break;
-                        }
-                        try {
-                            json = JSON.parse(line.replace(/^data: /, ''));
-                        } catch (error) {
-                            console.error('Error parsing JSON:', line, error);
-                            continue;
-                        }
-                        if (json.choices && json.choices.length > 0) {
-                            const content = json.choices[0].delta.content;
-                            if (content) {
-                                output.textContent += content;
-                                responseText += content;
-                                // scroll to bottom
-                                output.scrollTop = output.scrollHeight;
-                            }
-                        }
-                    }
-                }
-
-                // strip ```jsx and ``` from the response
-                console.log(responseText);
-                // responseText = responseText.replace(/```\w+\s*/g, '').replace(/```\s*$/g, '');
-
-                const regex = /```(?:\w+\n)?([\s\S]*?)```/g;
-                let matches;
-                while ((matches = regex.exec(responseText)) !== null) {
-                    responseText = matches[1].trim();
-                }
-
-                console.log("//////////////////////");
-                console.log(responseText);
-                renderGeneratedHtml(responseText);
-                openTab('tab-app');
-
-
-            } else {
-                output.textContent = 'Error: ' + response.statusText;
-            }
-
+            handleResponse(response, output);
 
         });
 
 
         const htmlWrapper = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
-    <title>React TypeScript Without Bundler</title>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+                <title>iFrame renderer</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                </style>
+            </head>
+            <body>
+                <div id="root"></div>
+                <script type="text/javascript">
+                    [[APP_CODE]]
+                <\/script>
+            </body>
+            </html>
+        `;
+
+        async function renderGeneratedApp(fileContents) {
+
+            await esbuild.initialize({ wasmURL: 'https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0/esbuild.wasm' })
+
+            async function getLatestVersion(packageName) {
+                const response = await fetch(`https://registry.npmjs.org/${packageName}`);
+                const data = await response.json();
+                return data['dist-tags'].latest;
             }
-        }
-    <\/script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-        }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="text/plain" id="jsx-code">
-        import ReactDOM from 'react-dom';
+            const virtualModules = {
+                name: 'virtual-modules',
+                setup(build) {
+                    // Intercept all import/require calls
+                    build.onResolve({ filter: /.*/ }, (args) => {
+                        const resolveImport = (importPath) => {
+                            // Normalize the path
+                            const normalizedPath = importPath.startsWith('/') ? importPath : `/${importPath}`;
 
-        [[APP_CODE]]
+                            const possiblePaths = [
+                                normalizedPath,
+                                `${normalizedPath}.js`,
+                                `${normalizedPath}.jsx`,
+                                `${normalizedPath}/index.js`,
+                                `${normalizedPath}/index.jsx`,
+                            ];
 
-        ReactDOM.render(<App />, document.getElementById('root'));
-    <\/script>
-    <script>
-        // Get the JSX code
-        const jsxCode = document.getElementById('jsx-code').textContent;
+                            // Handle relative imports
+                            if (importPath.startsWith('.')) {
+                                const currentDir = args.importer.split('/').slice(0, -1).join('/');
+                                const absolutePath = normalizePath(`${currentDir}/${importPath}`);
+                                possiblePaths.push(
+                                    absolutePath,
+                                    `${absolutePath}.js`,
+                                    `${absolutePath}.jsx`,
+                                    `${absolutePath}/index.js`,
+                                    `${absolutePath}/index.jsx`
+                                );
+                            }
 
-        // Transpile JSX to JavaScript using Babel
-        const compiledCode = Babel.transform(jsxCode, { presets: ['react'] }).code;
+                            for (const path of possiblePaths) {
+                                if (path in fileContents) {
+                                    return path;
+                                }
+                            }
 
-        // Log the compiled JavaScript code to the console
-        console.log(compiledCode);
+                            return null;
+                        };
 
-        // Create a new script element and execute the compiled code
-        const script = document.createElement('script');
-        script.type = 'module';
-        script.text = compiledCode;
-        document.body.appendChild(script);
-    <\/script>
-</body>
-</html>
-`;
+                        const resolvedPath = resolveImport(args.path);
+                        console.log("RESOLVED PATH", resolvedPath);
+                        if (resolvedPath) {
+                            return { path: resolvedPath, namespace: 'virtual-modules' };
+                        }
 
-        function renderGeneratedHtml(appHtml) {
-            const htmlContent = htmlWrapper.replace('[[APP_CODE]]', appHtml);
+                        // If no match found in virtual modules, return undefined
+                        // This allows the next plugin (openartifactPlugin) to handle it
+                        return undefined;
+                    });
 
-            const htmlContentUpdatedImports = htmlContent.replace(/import\s+.*?\s+from\s+['"]([^'"]+)['"]/g, (match, p1) => {
-                if (p1.startsWith('https://')) return match;
-                if (p1.startsWith('three/')) return match;
-                if (p1 == 'three') return match;
-                return match.replace(p1, `https://cdn.skypack.dev/${p1}`);
-            });
-
-            const blob = new Blob([htmlContentUpdatedImports], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-
-            const iframeElem = document.querySelector('iframe');
-            iframeElem.src = url;
-            iframeElem.onload = () => {
-                // URL.revokeObjectURL(url);
+                    // Load virtual modules
+                    build.onLoad({ filter: /.*/, namespace: 'virtual-modules' }, (args) => {
+                        if (args.path in fileContents) {
+                            return {
+                                contents: fileContents[args.path],
+                                loader: args.path.endsWith('.jsx') ? 'jsx' : 'js',
+                            };
+                        }
+                    });
+                },
             };
+
+            // Helper function to normalize paths
+            function normalizePath(path) {
+                const parts = path.split('/');
+                const result = [];
+                for (const part of parts) {
+                    if (part === '..') {
+                        result.pop();
+                    } else if (part !== '.' && part !== '') {
+                        result.push(part);
+                    }
+                }
+                return '/' + result.join('/');
+            }
+
+            const openartifactPlugin = {
+                name: 'openartifact-plugin',
+                setup(build) {
+                    build.onResolve({ filter: /.*/ }, async (args) => {
+                        if (args.path.startsWith('/')) {
+                            return { path: `https://cdn.jsdelivr.net${args.path}`, namespace: 'cdn' };
+                        } else {
+                            const packageName = args.path;
+                            try {
+                                // explicit version helps avoid loading same lib twice
+                                const latestVersion = await getLatestVersion(packageName);
+                                return { path: `https://cdn.jsdelivr.net/npm/${packageName}@${latestVersion}/+esm`, namespace: 'cdn' };
+                            } catch (error) {
+                                return { path: `https://cdn.jsdelivr.net/npm/${packageName}/+esm`, namespace: 'cdn' };
+                            }
+                        }
+                    });
+
+                    build.onLoad({ filter: /^https:\/\/cdn.jsdelivr.net\// }, async (args) => {
+                        const response = await fetch(args.path);
+                        const contents = await response.text();
+                        return { contents, loader: 'js' };
+                    });
+                },
+            };
+
+            const appEntryCode = fileContents['/index.jsx'];
+
+            try {
+                const result = await esbuild.build({
+                    stdin: {
+                        contents: appEntryCode,
+                        resolveDir: '',
+                        loader: 'jsx',
+                    },
+                    outfile: 'out.js',
+                    bundle: true,
+                    format: 'iife',
+                    minify: false,
+                    keepNames: true,
+                    jsx: 'automatic',
+                    target: 'es2020',
+                    platform: 'browser',
+                    plugins: [virtualModules, openartifactPlugin],
+                    write: false,
+                })
+
+                const output = result.outputFiles[0].text;
+                const newAppHtml = htmlWrapper.split('[[APP_CODE]]').join(output);
+
+                const appHtmlBlob = new Blob([newAppHtml], { type: 'text/html' });
+                const appHtmlUrl = URL.createObjectURL(appHtmlBlob);
+
+                const iframeElem = document.querySelector('iframe');
+                iframeElem.src = appHtmlUrl;
+                iframeElem.onload = () => {
+                    // URL.revokeObjectURL(url);
+                };
+
+            } catch (error) {
+                console.error('Build failed:', error);
+            } finally {
+                esbuild.stop();
+            }
+
         }
+
+
+        // openTab('tab-app');
+        // renderGeneratedApp(exampleApp)
+
 
     </script>
 </body>
