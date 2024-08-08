@@ -37,7 +37,7 @@
                 editor.onDidChangeModelContent(function(e) {
                     if(manualEditMode === true) {
                         let currentCode = window.editor.getValue();
-                        console.log("CHANGED CODE", currentAppendFilename, currentCode);
+
                         fileContents[currentOpenFilename] = currentCode;
                         manualEditsMade = true;
 
@@ -579,94 +579,73 @@ Other notes:
                 if (chunk.startsWith('data: ')) {
                     const dataStr = chunk.slice(6).trim();
                     if (dataStr !== '[DONE]') {
+                        let json;
                         try {
-                            const json = JSON.parse(dataStr);
-                            if (json.choices && json.choices.length > 0) {
-                                const content = json.choices[0].delta.content;
-                                if (content) {
-                                    accumulatedContent += content;
+                            json = JSON.parse(dataStr);
+                        } catch (e) {
+                            console.error("Error parsing JSON:", e);
+                        }
+                        if (json && json.choices && json.choices.length > 0) {
+                            const content = json.choices[0].delta.content;
+                            if (content) {
+                                accumulatedContent += content;
 
-                                    responseText += content;
-                                }
+                                responseText += content;
+                            }
 
 
-                                if (accumulatorState === "WAITING_FOR_CODE_BLOCK_START") {
-                                    console.log("accumulatorState WAITING_FOR_CODE_BLOCK_START");
-                                    let tickmatch = accumulatedContent.match(/^```\w+$/gm);
-                                    if (tickmatch) {
-                                        console.log("accumulatorState IN_CODE_BLOCK", currentAppendFilename, tickmatch[0]);
-                                        accumulatorState = "IN_CODE_BLOCK";
-                                        accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(tickmatch[0]) + tickmatch[0].length).trim();
-                                    }
-                                }
+                            const fileNameMatches = Array.from(accumulatedContent.matchAll(/\[FILENAME:\s*(.+?)\]/g));
+                            let lastFileName;
+                            try {
+                                lastFileName = fileNameMatches[fileNameMatches.length - 1][1];
+                            } catch (e) {
+                                // console.error("Error parsing file name", e);
+                            }
+                            if(lastFileName) {
 
-                                if (accumulatorState === "IN_CODE_BLOCK") {
-                                    if (!fileContents[currentAppendFilename]) fileContents[currentAppendFilename] = '';
-                                    const endmatch = fileContents[currentAppendFilename].match(/^```$/gm);
-                                    if (endmatch) {
-                                        console.log("accumulatorState END_OF_CODE_BLOCK", currentAppendFilename);
-                                        accumulatorState = "WAITING_FOR_FILENAME";
-                                        const [preticks, postticks] = fileContents[currentAppendFilename].split(endmatch[0], 2);
-                                        fileContents[currentAppendFilename] = preticks;
-                                        editor.setValue(fileContents[currentAppendFilename]);
-                                        accumulatedContent = postticks;
-                                    } else {
-                                        // output.textContent += accumulatedContent;
-                                        fileContents[currentAppendFilename] += accumulatedContent;
-                                        appendText(editor, accumulatedContent);
-                                        accumulatedContent = '';
-                                    }
-                                    // scroll to bottom
-                                    // output.scrollTop = output.scrollHeight;
-                                }
-                                if (accumulatorState === "WAITING_FOR_FILENAME" || accumulatorState === "IN_README") {
-                                    // console.log(accumulatedContent);
-                                    if (accumulatedContent.match(/\[FILENAME:\s*(.+?)\]/)) {
-                                        const fileNameMatches = Array.from(accumulatedContent.matchAll(/\[FILENAME:\s*(.+?)\]/g));
-                                        const lastFileName = fileNameMatches[fileNameMatches.length - 1];
-                                        if (currentAppendFilename !== lastFileName[1]) {
-                                            console.log("filename changed", currentAppendFilename, lastFileName[1]);
-                                            // accumulatedContent = '';
-                                            // remove everything up to and including [FILENAME: <filename>]
-                                            accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(lastFileName[0]) + lastFileName[0].length);
-                                            accumulatorState = "WAITING_FOR_CODE_BLOCK_START";
+                                const correctedFileName = lastFileName.startsWith("/") ? lastFileName : `/${lastFileName}`;
 
-                                            const correctedFilename = lastFileName[1].startsWith("/") ? lastFileName[1] : "/" + lastFileName[1];
-                                            // output.textContent = '';
-                                            editor.setValue('');
-                                            currentAppendFilename = correctedFilename;
-                                            currentOpenFilename = correctedFilename;
+                                if (correctedFileName !== currentAppendFilename) {
+                                    currentAppendFilename = correctedFileName;
+                                    currentOpenFilename = correctedFileName;
+                                    editor.setValue('');
+
+                                    const fileList = document.getElementById('files-list');
+                                    fileList.querySelectorAll('li').forEach(li => {
+                                        li.classList.remove('current');
+                                    });
+                                    const fileItem = document.createElement('li');
+                                    fileItem.textContent = currentAppendFilename;
+                                    fileItem.classList.add('current');
+                                    fileItem.addEventListener('click', function (e) {
+                                        e.preventDefault();
+                                        if(manualEditMode) {
+                                            const filename = e.target.textContent;
+                                            currentOpenFilename = filename;
                                             const fileList = document.getElementById('files-list');
                                             fileList.querySelectorAll('li').forEach(li => {
                                                 li.classList.remove('current');
                                             });
-                                            const fileItem = document.createElement('li');
-                                            fileItem.textContent = currentAppendFilename;
-                                            fileItem.classList.add('current');
-                                            fileItem.addEventListener('click', function (e) {
-                                                e.preventDefault();
-                                                if(manualEditMode) {
-                                                    const filename = e.target.textContent;
-                                                    currentOpenFilename = filename;
-                                                    const fileList = document.getElementById('files-list');
-                                                    fileList.querySelectorAll('li').forEach(li => {
-                                                        li.classList.remove('current');
-                                                    });
-                                                    e.target.classList.add('current');
-                                                    // output.textContent = fileContents[filename];
-                                                    editor.setValue(fileContents[filename]);
-                                                } else {
-                                                    alert("Please wait until the app is generated first. Sorry this is a dumb limitation. Will refactor to support this later.");
-                                                }
-                                            });
-                                            fileList.appendChild(fileItem);
+                                            e.target.classList.add('current');
+                                            // output.textContent = fileContents[filename];
+                                            editor.setValue(fileContents[filename]);
+                                        } else {
+                                            alert("Please wait until the app is generated first. Sorry this is a dumb limitation. Will refactor to support this later.");
                                         }
-                                    }
+                                    });
+                                    fileList.appendChild(fileItem);
                                 }
 
+                                const _fileContents = extractFileContents(accumulatedContent);
+
+                                if(!_fileContents[currentAppendFilename]) {
+                                    _fileContents[currentAppendFilename] = '';
+                                }
+                                const prevFileState = fileContents[currentAppendFilename] || '';
+                                const newTextToAppend = _fileContents[currentAppendFilename].slice(prevFileState.length);
+                                appendText(editor, newTextToAppend);
+                                fileContents[currentAppendFilename] = _fileContents[currentAppendFilename];
                             }
-                        } catch (e) {
-                            console.error('Error parsing JSON:', e);
                         }
                     }
                 }
@@ -674,14 +653,13 @@ Other notes:
             }
 
             function extractFileContents(text) {
-                const fileMap = {}
-                const regex = /\[FILENAME:\s*(.+?)\]\s*```(\w*)\n([\s\S]*?)```/g;
+                const fileMap = {};
+                const regex = /\[FILENAME:\s*(.+?)\]\s*```(\w*)\n([\s\S]*?)(```|$)/g;
                 let match;
 
                 while ((match = regex.exec(text)) !== null) {
                     const [, filename, language, content] = match;
                     fileMap[(filename.startsWith("/") ? "" : "/") + filename.trim()] = content.trim();
-                    // fileMap[filename.trim()] = content.trim();
                 }
 
                 return fileMap;
@@ -695,7 +673,6 @@ Other notes:
                     const downloadButton = document.querySelector('#download-button');
                     downloadButton.classList.remove('hidden');
 
-                    console.log(fileContents);
 
                     renderGeneratedApp(fileContents);
                     openTab('tab-app');
@@ -751,10 +728,6 @@ Other notes:
         `;
 
         async function renderGeneratedApp(fileContents) {
-            console.log("RENDERING APP:", fileContents);
-
-
-            // loading-indicator
             const loadingIndicator = document.querySelector('.loading-indicator');
             loadingIndicator.style.display = 'block';
 
@@ -812,7 +785,7 @@ Other notes:
                         };
 
                         const resolvedPath = resolveImport(args.path);
-                        console.log("RESOLVED PATH", resolvedPath);
+
                         if (resolvedPath) {
                             return { path: resolvedPath, namespace: 'virtual-modules' };
                         }
