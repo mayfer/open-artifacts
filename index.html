@@ -7,6 +7,49 @@
     <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
     <meta name="viewport" content="initial-scale=0.75">
     <title>OpenArtifacts</title>
+    
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
+
+    <script>
+        self.MonacoEnvironment = {
+            getWorkerUrl: function(moduleId, label) {
+                return './editor.worker.js';
+            }
+        };
+
+        let manualEditMode = false;
+        let manualEditsMade = false;
+
+        window.onload = function() {
+            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs' } });
+            
+            require(['vs/editor/editor.main'], function() {
+                let editor = monaco.editor.create(document.getElementById('code-editor'), {
+                    value: '// Generated code will appear here',
+                    language: 'javascript',
+                    automaticLayout: true
+                });
+                window.editor = editor;
+                
+                editor.onDidChangeModelContent(function(e) {
+                    if(manualEditMode === true) {
+                        let currentCode = window.editor.getValue();
+                        console.log("CHANGED CODE", currentAppendFilename, currentCode);
+                        fileContents[currentOpenFilename] = currentCode;
+                        manualEditsMade = true;
+
+                        const refreshButton = document.querySelector('#refresh-button');
+                        refreshButton.classList.remove('hidden');
+                    }
+                });
+            });
+
+        };
+
+    </script>
     <style>
         html,
         body {
@@ -134,6 +177,7 @@
         .tab-btn {
             padding: 0px 20px;
             font-size: 15px;
+            position: relative;
             color: #57392d;
             border: none;
             border-bottom: none;
@@ -196,7 +240,7 @@
             outline: 1px solid #ccc;
         }
 
-        .file-content {
+        #code-editor {
             flex-grow: 1;
             height: calc(100% - 20px);
             border-left: 1px solid #e2dbd1;
@@ -212,6 +256,36 @@
             padding: 20px;
             font-size: 16px;
         }
+
+        #refresh-button {
+            filter: sepia(1);
+        }
+        #refresh-button.hidden {
+            display: none;
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #ccc;
+        }
+
+        #download-button {
+            margin-top: 10px;
+            background-color: #2f382f;
+            color: white;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            line-height: 30px;
+            padding: 0 20px;
+        }
+        #download-button.hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -221,7 +295,12 @@
             <div class='logo'> OpenArtifacts </div>
             <button class="tab-btn current" id="button-tab-form" onclick="openTab('tab-form')">Form</button>
             <button class="tab-btn" id="button-tab-code" onclick="openTab('tab-code')">Code</button>
-            <button class="tab-btn" id="button-tab-app" onclick="openTab('tab-app')">App</button>
+            <button class="tab-btn" id="button-tab-app" onclick="openTab('tab-app')">
+                App
+                <span id="refresh-button" class="hidden">
+                    🔄
+                </span>
+            </button>
             <button class="tab-btn" id="button-tab-about" onclick="openTab('tab-about')">?</button>
         </div>
 
@@ -270,18 +349,24 @@
                 <div class="files-sidebar">
                     <ul id="files-list">
                     </ul>
+                    <button id="download-button" class="hidden" onclick="downloadZip(fileContents)">
+                        ⬇ Download .zip
+                    </button>
                 </div>
-                <div class="file-content">
-                    <pre><code id="file-content" contenteditable="true"></code></pre>
+                <div class="file-content" id="code-editor">
                 </div>
             </div>
 
         </div>
         <div class="tab-section" id="tab-app">
+            <div class="loading-indicator" style="display: none;">
+                <svg width="50%" height="50%" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><style>.spinner_ajPY{transform-origin:center;animation:spinner_AtaB .75s infinite linear}@keyframes spinner_AtaB{100%{transform:rotate(360deg)}}</style><path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" opacity=".25"/><path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" class="spinner_ajPY"/></svg>
+            </div>
             <iframe></iframe>
         </div>
         <div class="tab-section" id="tab-about">
             <div class="about-container">
+                <h1>OpenArtifacts</h1>
                 <p>
                     OpenArtifacts is a clone of Antrhopic's Claude Artifacts which immediately runs the generated code in the browser.
                 </p>
@@ -291,11 +376,28 @@
                 <p>
                     The result is a single html file that can be opened in any browser, and the code is immediately runnable, even over file:// protocol.
                 </p>
+                <h2>Limitations</h2>
+                <p>
+                    Due to some hacky tricks required to get the bundler working on browser-side directly, there may be some libraries or file types that are not supported. If you find any, please open an issue on <a href="https://github.com/mayfer/open-artifacts">github</a>.
+                </p>
+                <h2>Credits</h2>
+                <p>
+                    OpenArtifcats is a project by <a href="https://x.com/mayfer">murat</a>. This is a complement project to <a href="https:/appcrapper.com">AppCrapper</a>, which is a similar project that generates both frontend & backend code but requires a server to execute.
+                </p>
+                <p>
+                    Clone on <a href="https://github.com/mayfer/open-artifacts">github</a>
+                </p>
             </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0"></script>
     <script>
+
+
+        let fileContents = {};
+        let currentAppendFilename = "";
+        let currentOpenFilename = "";
+
 
         function openTab(tabId) {
             const tabBtn = document.getElementById(`button-${tabId}`);
@@ -309,6 +411,10 @@
             });
             tabBtn.classList.add('current');
             tabSection.classList.add('current');
+
+            if(tabId === 'tab-app' && manualEditMode && manualEditsMade) {
+                renderGeneratedApp(fileContents)
+            }
         }
 
         function chooseApi(e, api) {
@@ -375,20 +481,36 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            manualEditMode = false;
+            manualEditsMade = false;
+
+            const refreshButton = document.querySelector('#refresh-button');
+            refreshButton.classList.add('hidden');
+
+            const downloadButton = document.querySelector('#download-button');
+            downloadButton.classList.add('hidden');
+
+            window.editor.updateOptions({ readOnly: true });
+
             const iframeElem = document.querySelector('iframe');
             iframeElem.src = '';
 
             // empty rendered files list
             const filesList = document.getElementById('files-list');
             filesList.innerHTML = '';
-            const fileContent = document.getElementById('file-content');
-            fileContent.textContent = '';
+            // const fileContent = document.getElementById('file-content');
+            // fileContent.textContent = '';
 
             const prompt = form.prompt.value;
 
-            const fullprompt = `You are an expert front-end developer. Generate a React component (called App, and render into div #root) that follows the following specifications: ${prompt}\n\nQuickly list methods you'll likely need for the component(s), the files you'll need, and then immediately generate the code in single or multiple code blocks. Before each code block, name the file in square brackes like this:
-[FILENAME: file.js]
-\`\`\`javascript
+            const fullprompt = `You are an expert front-end developer. Generate a React component (called App, and render into div #root) that follows the following specifications: ${prompt}\n\n\nStart by generating a code block for a file called README.md, generated just like the other code files. In the readme, list methods you'll likely need for the component(s), the files you'll need, and then immediately generate the code blocks after. Before each readme or code block, name the file in square brackes like this:
+[FILENAME: README.md]
+\`\`\`markdown
+...
+\`\`\`
+
+[FILENAME: index.jsx]
+\`\`\`jsx
 ...
 \`\`\`
 
@@ -402,17 +524,19 @@ Other notes:
             const apiKey = document.querySelector('#key').value;
             const apiEndpoint = document.querySelector('#api-endpoint').value;
             const modelName = document.querySelector('#model-name').value;
-            const output = document.querySelector('#file-content');
+            // const output = window.editor;
+            const editor = window.editor;
 
-            let currentFileName = "README.md";
+            currentAppendFilename = "";
             let accumulatedContent = '';
-            let accumulatorState = "IN_CODE_BLOCK";
-            const fileContents = {};
+            let accumulatorState = "WAITING_FOR_FILENAME";
 
-            output.textContent = '';
+            // output.textContent = '';
+            editor.setValue('');
+
             openTab('tab-code');
 
-            async function processStream(response, output) {
+            async function processStream(response, editor) {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let buffer = '';
@@ -422,28 +546,36 @@ Other notes:
                     const { value, done } = await reader.read();
                     if (done) break;
                     buffer += decoder.decode(value, { stream: true });
-                    ({ buffer, responseText } = processBuffer(buffer, output, responseText));
+                    ({ buffer, responseText } = processBuffer(buffer, editor, responseText));
                 }
 
                 // Handle any remaining data in the buffer
-                processChunk(buffer.trim(), output, responseText);
+                processChunk(buffer.trim(), editor, responseText);
 
                 return responseText;
             }
 
-            function processBuffer(buffer, output, responseText) {
+            function processBuffer(buffer, editor, responseText) {
                 while (true) {
                     const boundary = buffer.indexOf('\n');
                     if (boundary === -1) break;
                     const chunk = buffer.slice(0, boundary).trim();
                     buffer = buffer.slice(boundary + 1);
-                    ({ responseText } = processChunk(chunk, output, responseText));
+                    ({ responseText } = processChunk(chunk, editor, responseText));
                 }
 
                 return { buffer, responseText };
             }
 
-            function processChunk(chunk, output, responseText) {
+            function appendText(editor, text) {
+                var model = editor.getModel();
+                var lastLine = model.getLineCount();
+                var lastColumn = model.getLineMaxColumn(lastLine);
+                var range = new monaco.Range(lastLine, lastColumn, lastLine, lastColumn);
+                model.pushEditOperations([], [{ range: range, text: text }]);
+            }
+
+            function processChunk(chunk, editor, responseText) {
                 if (chunk.startsWith('data: ')) {
                     const dataStr = chunk.slice(6).trim();
                     if (dataStr !== '[DONE]') {
@@ -462,58 +594,70 @@ Other notes:
                                     console.log("accumulatorState WAITING_FOR_CODE_BLOCK_START");
                                     let tickmatch = accumulatedContent.match(/^```\w+$/gm);
                                     if (tickmatch) {
-                                        console.log("accumulatorState IN_CODE_BLOCK", currentFileName, tickmatch[0]);
+                                        console.log("accumulatorState IN_CODE_BLOCK", currentAppendFilename, tickmatch[0]);
                                         accumulatorState = "IN_CODE_BLOCK";
                                         accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(tickmatch[0]) + tickmatch[0].length).trim();
                                     }
                                 }
 
                                 if (accumulatorState === "IN_CODE_BLOCK") {
-                                    if (!fileContents[currentFileName]) fileContents[currentFileName] = '';
-                                    fileContents[currentFileName] += accumulatedContent;
-                                    const endmatch = fileContents[currentFileName].match(/^```$/gm);
+                                    if (!fileContents[currentAppendFilename]) fileContents[currentAppendFilename] = '';
+                                    const endmatch = fileContents[currentAppendFilename].match(/^```$/gm);
                                     if (endmatch) {
-                                        console.log("accumulatorState END_OF_CODE_BLOCK", currentFileName);
+                                        console.log("accumulatorState END_OF_CODE_BLOCK", currentAppendFilename);
                                         accumulatorState = "WAITING_FOR_FILENAME";
-                                        const [preticks, postticks] = fileContents[currentFileName].split(endmatch[0], 2);
-                                        fileContents[currentFileName] = preticks;
-                                        output.textContent = fileContents[currentFileName];
+                                        const [preticks, postticks] = fileContents[currentAppendFilename].split(endmatch[0], 2);
+                                        fileContents[currentAppendFilename] = preticks;
+                                        editor.setValue(fileContents[currentAppendFilename]);
                                         accumulatedContent = postticks;
                                     } else {
-                                        output.textContent += accumulatedContent;
+                                        // output.textContent += accumulatedContent;
+                                        fileContents[currentAppendFilename] += accumulatedContent;
+                                        appendText(editor, accumulatedContent);
                                         accumulatedContent = '';
                                     }
                                     // scroll to bottom
-                                    output.scrollTop = output.scrollHeight;
+                                    // output.scrollTop = output.scrollHeight;
                                 }
-                                if (accumulatorState === "WAITING_FOR_FILENAME") {
+                                if (accumulatorState === "WAITING_FOR_FILENAME" || accumulatorState === "IN_README") {
                                     // console.log(accumulatedContent);
                                     if (accumulatedContent.match(/\[FILENAME:\s*(.+?)\]/)) {
                                         const fileNameMatches = Array.from(accumulatedContent.matchAll(/\[FILENAME:\s*(.+?)\]/g));
                                         const lastFileName = fileNameMatches[fileNameMatches.length - 1];
-                                        if (currentFileName !== lastFileName[1]) {
-                                            console.log("filename changed", currentFileName, lastFileName[1]);
+                                        if (currentAppendFilename !== lastFileName[1]) {
+                                            console.log("filename changed", currentAppendFilename, lastFileName[1]);
                                             // accumulatedContent = '';
                                             // remove everything up to and including [FILENAME: <filename>]
                                             accumulatedContent = accumulatedContent.slice(accumulatedContent.indexOf(lastFileName[0]) + lastFileName[0].length);
                                             accumulatorState = "WAITING_FOR_CODE_BLOCK_START";
-                                            output.textContent = '';
-                                            currentFileName = lastFileName[1];
+
+                                            const correctedFilename = lastFileName[1].startsWith("/") ? lastFileName[1] : "/" + lastFileName[1];
+                                            // output.textContent = '';
+                                            editor.setValue('');
+                                            currentAppendFilename = correctedFilename;
+                                            currentOpenFilename = correctedFilename;
                                             const fileList = document.getElementById('files-list');
                                             fileList.querySelectorAll('li').forEach(li => {
                                                 li.classList.remove('current');
                                             });
                                             const fileItem = document.createElement('li');
-                                            fileItem.textContent = currentFileName;
+                                            fileItem.textContent = currentAppendFilename;
                                             fileItem.classList.add('current');
                                             fileItem.addEventListener('click', function (e) {
-                                                const filename = e.target.textContent;
-                                                const fileList = document.getElementById('files-list');
-                                                fileList.querySelectorAll('li').forEach(li => {
-                                                    li.classList.remove('current');
-                                                });
-                                                e.target.classList.add('current');
-                                                output.textContent = fileContents[filename];
+                                                e.preventDefault();
+                                                if(manualEditMode) {
+                                                    const filename = e.target.textContent;
+                                                    currentOpenFilename = filename;
+                                                    const fileList = document.getElementById('files-list');
+                                                    fileList.querySelectorAll('li').forEach(li => {
+                                                        li.classList.remove('current');
+                                                    });
+                                                    e.target.classList.add('current');
+                                                    // output.textContent = fileContents[filename];
+                                                    editor.setValue(fileContents[filename]);
+                                                } else {
+                                                    alert("Please wait until the app is generated first. Sorry this is a dumb limitation. Will refactor to support this later.");
+                                                }
                                             });
                                             fileList.appendChild(fileItem);
                                         }
@@ -537,22 +681,29 @@ Other notes:
                 while ((match = regex.exec(text)) !== null) {
                     const [, filename, language, content] = match;
                     fileMap[(filename.startsWith("/") ? "" : "/") + filename.trim()] = content.trim();
+                    // fileMap[filename.trim()] = content.trim();
                 }
 
                 return fileMap;
             }
 
-            async function handleResponse(response, output) {
+            async function handleResponse(response, editor) {
                 if (response.ok) {
-                    const responseText = await processStream(response, output);
+                    const responseText = await processStream(response, editor);
                     const fileContents = extractFileContents(responseText);
+
+                    const downloadButton = document.querySelector('#download-button');
+                    downloadButton.classList.remove('hidden');
 
                     console.log(fileContents);
 
                     renderGeneratedApp(fileContents);
                     openTab('tab-app');
+                    manualEditMode = true;
+                    editor.updateOptions({ readOnly: false });
                 } else {
-                    output.textContent = 'Error: ' + response.statusText;
+                    // output.textContent = 'Error: ' + response.statusText;
+                    editor.setValue('Error: ' + response.statusText);
                 }
             }
 
@@ -571,7 +722,7 @@ Other notes:
                 })
             });
 
-            handleResponse(response, output);
+            handleResponse(response, editor);
 
         });
 
@@ -600,7 +751,18 @@ Other notes:
         `;
 
         async function renderGeneratedApp(fileContents) {
+            console.log("RENDERING APP:", fileContents);
 
+
+            // loading-indicator
+            const loadingIndicator = document.querySelector('.loading-indicator');
+            loadingIndicator.style.display = 'block';
+
+            const refreshButton = document.querySelector('#refresh-button');
+            refreshButton.classList.add('hidden');
+
+            manualEditsMade = false;
+            
             await esbuild.initialize({ wasmURL: 'https://cdn.jsdelivr.net/npm/esbuild-wasm@0.23.0/esbuild.wasm' })
 
             async function getLatestVersion(packageName) {
@@ -663,8 +825,9 @@ Other notes:
                     // Load virtual modules
                     build.onLoad({ filter: /.*/, namespace: 'virtual-modules' }, (args) => {
                         if (args.path in fileContents) {
+                            const pathWithoutLeadingDot = args.path.startsWith('.') ? args.path.slice(1) : args.path;
                             return {
-                                contents: fileContents[args.path],
+                                contents: fileContents[pathWithoutLeadingDot],
                                 loader: args.path.endsWith('.jsx') ? 'jsx' : 'js',
                             };
                         }
@@ -750,6 +913,8 @@ Other notes:
                 console.error('Build failed:', error);
             } finally {
                 esbuild.stop();
+                loadingIndicator.style.display = 'none';
+
             }
 
         }
@@ -757,6 +922,19 @@ Other notes:
 
         // openTab('tab-app');
         // renderGeneratedApp(exampleApp)
+
+        function downloadZip(files) {
+
+            const zip = new JSZip();
+
+            Object.keys(files).forEach(function (filePath) {
+                zip.file("open-artifact-app" + filePath, files[filePath]);
+            });
+
+            zip.generateAsync({ type: "blob" }).then(function (content) {
+                saveAs(content, "open-artifact-app.zip");
+            });
+        }
 
 
     </script>
