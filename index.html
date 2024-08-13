@@ -942,54 +942,11 @@ Other notes:
 
         }
 
-
-        const exampleApp = `
-        import React, { useRef } from 'react';
-import ReactDOM from 'react-dom/client';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Box } from '@react-three/drei';
-
-function RotatingBox() {
-  const meshRef = useRef();
-
-  useFrame((state, delta) => {
-    meshRef.current.rotation.x += delta;
-    meshRef.current.rotation.y += delta * 0.5;
-  });
-
-  return (
-    <Box ref={meshRef} args={[1, 1, 1]}>
-      <meshNormalMaterial />
-    </Box>
-  );
-}
-
-export default function App() {
-  return (
-    <Canvas
-      camera={{ position: [0, 0, 5] }}
-      dpr={window.devicePixelRatio}
-    >
-      <OrbitControls />
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} />
-      <RotatingBox />
-    </Canvas>
-  );
-}
-
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
-  `
-        openTab('tab-app');
-        renderGeneratedApp({
-            "/index.jsx": exampleApp
-        });
+  
+        // openTab('tab-app');
+        // renderGeneratedApp({
+        //     "/index.jsx": exampleApp
+        // });
 
         function downloadZip(files) {
 
