@@ -871,16 +871,17 @@ Other notes:
                         // remove version number to avoid loading same lib twice if it's react or three.js
                         if(packageIdentifier.includes('react') || packageIdentifier.includes('three')) {
                             packageName = packageIdentifier.replace(/@[\d.]+/, '');
+                            pacageIdentifier = packageName;
                         } else {
                             packageName = packageIdentifier;
                         }
-                        packageUrl = `${module_host}${module_url_prefix}${packageIdentifier}/+esm`;
-
+                        
                         const cached = cache[packageName];
                         if (cached) {
                             console.log(`Using cached ${packageName} from ${cached} (${args.path})`);
                             return { path: cached, namespace: 'cdn' };
                         } else {
+                            packageUrl = `${module_host}${module_url_prefix}${packageIdentifier}/+esm`;
                             cache[packageName] = packageUrl;
                             console.log(`Fetching ${packageName} from ${packageUrl} (${args.path})`);
                             return { path: packageUrl, namespace: 'cdn' };
