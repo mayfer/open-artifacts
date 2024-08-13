@@ -866,11 +866,14 @@ Other notes:
                     build.onResolve({ filter: /.*/ }, async (args) => {
                         let packageName, packageUrl;
 
-                        console.log(args);
                         packageIdentifier = extractPackageIdentifier(args.path);
 
-                        // remove version number to avoid loading same lib twice
-                        packageName = packageIdentifier.replace(/@[\d.]+/, '');
+                        // remove version number to avoid loading same lib twice if it's react or three.js
+                        if(packageIdentifier.includes('react') || packageIdentifier.includes('three')) {
+                            packageName = packageIdentifier.replace(/@[\d.]+/, '');
+                        } else {
+                            packageName = packageIdentifier;
+                        }
                         packageUrl = `${module_host}${module_url_prefix}${packageIdentifier}/+esm`;
 
                         const cached = cache[packageName];
@@ -940,10 +943,53 @@ Other notes:
         }
 
 
-        // openTab('tab-app');
-        // renderGeneratedApp({
-        //     "/index.jsx": exampleApp
-        // });
+        const exampleApp = `
+        import React, { useRef } from 'react';
+import ReactDOM from 'react-dom/client';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Box } from '@react-three/drei';
+
+function RotatingBox() {
+  const meshRef = useRef();
+
+  useFrame((state, delta) => {
+    meshRef.current.rotation.x += delta;
+    meshRef.current.rotation.y += delta * 0.5;
+  });
+
+  return (
+    <Box ref={meshRef} args={[1, 1, 1]}>
+      <meshNormalMaterial />
+    </Box>
+  );
+}
+
+export default function App() {
+  return (
+    <Canvas
+      camera={{ position: [0, 0, 5] }}
+      dpr={window.devicePixelRatio}
+    >
+      <OrbitControls />
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} />
+      <RotatingBox />
+    </Canvas>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+  `
+        openTab('tab-app');
+        renderGeneratedApp({
+            "/index.jsx": exampleApp
+        });
 
         function downloadZip(files) {
 
