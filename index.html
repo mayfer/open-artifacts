@@ -483,7 +483,7 @@
 
 
         form.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && (e.shiftKey || e.metaKey || e.ctrlKey)) {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 form.dispatchEvent(new Event('submit'));
             }
@@ -836,18 +836,51 @@ Other notes:
             const openartifactPlugin = {
                 name: 'openartifact-plugin',
                 setup(build) {
+                    const cache = {};
+                    const module_host = 'https://cdn.jsdelivr.net';
+                    const module_url_prefix = '/npm/';
+
+                    function extractPackageName(input) {
+                        // Regular expression to match package names
+                        const pattern = /^(?:\/npm\/)?(@?[\w-]+(?:\/[\w-]+)?)/;
+                        
+                        const match = input.match(pattern);
+                        return match ? match[1] : null;
+                    }
+
+                    function extractPackageIdentifier(input) {
+                        // Remove /npm/ prefix and /+esm suffix
+                        let cleaned = input.replace(/^\/npm\//, '').replace(/\/\+esm$/, '');
+                        
+                        // Regular expression to match package names with version and additional path
+                        const pattern = /^(@?[\w-]+(?:\/[\w-]+)?)(.*)$/;
+                        
+                        const match = cleaned.match(pattern);
+                        if (match) {
+                            const [, packageName, rest] = match;
+                            return packageName + rest;
+                        }
+                        return null;
+                    }
+
                     build.onResolve({ filter: /.*/ }, async (args) => {
-                        if (args.path.startsWith('/')) {
-                            return { path: `https://cdn.jsdelivr.net${args.path}`, namespace: 'cdn' };
+                        let packageName, packageUrl;
+
+                        console.log(args);
+                        packageIdentifier = extractPackageIdentifier(args.path);
+
+                        // remove version number to avoid loading same lib twice
+                        packageName = packageIdentifier.replace(/@[\d.]+/, '');
+                        packageUrl = `${module_host}${module_url_prefix}${packageIdentifier}/+esm`;
+
+                        const cached = cache[packageName];
+                        if (cached) {
+                            console.log(`Using cached ${packageName} from ${cached} (${args.path})`);
+                            return { path: cached, namespace: 'cdn' };
                         } else {
-                            const packageName = args.path;
-                            try {
-                                // explicit version helps avoid loading same lib twice
-                                const latestVersion = await getLatestVersion(packageName);
-                                return { path: `https://cdn.jsdelivr.net/npm/${packageName}@${latestVersion}/+esm`, namespace: 'cdn' };
-                            } catch (error) {
-                                return { path: `https://cdn.jsdelivr.net/npm/${packageName}/+esm`, namespace: 'cdn' };
-                            }
+                            cache[packageName] = packageUrl;
+                            console.log(`Fetching ${packageName} from ${packageUrl} (${args.path})`);
+                            return { path: packageUrl, namespace: 'cdn' };
                         }
                     });
 
@@ -867,6 +900,9 @@ Other notes:
                         contents: appEntryCode,
                         resolveDir: '',
                         loader: 'jsx',
+                    },
+                    define: {
+                        'import.meta.env': "{}",
                     },
                     outfile: 'out.js',
                     bundle: true,
@@ -905,7 +941,9 @@ Other notes:
 
 
         // openTab('tab-app');
-        // renderGeneratedApp(exampleApp)
+        // renderGeneratedApp({
+        //     "/index.jsx": exampleApp
+        // });
 
         function downloadZip(files) {
 
