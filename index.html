@@ -30,7 +30,8 @@
                 let editor = monaco.editor.create(document.getElementById('code-editor'), {
                     value: '// Generated code will appear here',
                     language: 'javascript',
-                    automaticLayout: true
+                    automaticLayout: true,
+                    wordWrap: 'on'
                 });
                 window.editor = editor;
                 
@@ -311,6 +312,7 @@
                         <a href="#" onclick="chooseApi(event, 'openai')">OpenAI</a>,
                         <!-- <a href="#" onclick="chooseApi(e, 'anthropic')">Anthropic</a>, -->
                         <a href="#" onclick="chooseApi(event, 'llamacpp')">Llama.cpp</a>,
+                        <a href="#" onclick="chooseApi(event, 'ollama')">Ollama</a>,
                         <a href="#" onclick="chooseApi(event, 'openrouter')">OpenRouter</a>,
                         <a href="#" onclick="chooseApi(event, 'groq')">Groq</a>,
                         Claude (coming soon)
@@ -351,6 +353,15 @@
                     <button id="download-button" class="hidden" onclick="downloadZip(fileContents)">
                         ⬇ Download .zip
                     </button>
+
+                    <!--
+                        <br />
+                        <button id="upload-button" class="hidden" onclick="triggerFileUpload()">
+                            Upload .zip
+                        </button>
+                        <input type="file" id="fileInput" accept=".zip" style="display: none;" onChange="uploadZip()" />
+                    -->
+
                 </div>
                 <div class="file-content" id="code-editor">
                 </div>
@@ -439,6 +450,8 @@
                 apiEndpoint.value = 'https://api.anthropic.com/v1/complete';
             } else if (api == 'llamacpp') {
                 apiEndpoint.value = 'http://localhost:8080/v1/chat/completions';
+            } else if (api == 'ollama') {
+                apiEndpoint.value = 'http://localhost:11434/v1/chat/completions';
             } else if (api == 'openrouter') {
                 apiEndpoint.value = 'https://openrouter.ai/api/v1/chat/completions';
                 modelName.value = 'meta-llama/llama-3.1-405b-instruct';
@@ -470,6 +483,34 @@
                     }
                 });
             }
+        }
+
+
+        function addFileToList(new_filename) {
+            const fileList = document.getElementById('files-list');
+            fileList.querySelectorAll('li').forEach(li => {
+                li.classList.remove('current');
+            });
+            const fileItem = document.createElement('li');
+            fileItem.textContent = new_filename;
+            fileItem.classList.add('current');
+            fileItem.addEventListener('click', function (e) {
+                e.preventDefault();
+                if(manualEditMode) {
+                    const filename = e.target.textContent;
+                    currentOpenFilename = filename;
+                    const fileList = document.getElementById('files-list');
+                    fileList.querySelectorAll('li').forEach(li => {
+                        li.classList.remove('current');
+                    });
+                    e.target.classList.add('current');
+                    // output.textContent = fileContents[filename];
+                    editor.setValue(fileContents[filename]);
+                } else {
+                    alert("Please wait until the app is generated first. Sorry this is a dumb limitation. Will refactor to support this later.");
+                }
+            });
+            fileList.appendChild(fileItem);
         }
 
         window.addEventListener('load', loadFromLocalStorage);
@@ -621,30 +662,7 @@ Other notes:
                                     currentOpenFilename = correctedFileName;
                                     editor.setValue('');
 
-                                    const fileList = document.getElementById('files-list');
-                                    fileList.querySelectorAll('li').forEach(li => {
-                                        li.classList.remove('current');
-                                    });
-                                    const fileItem = document.createElement('li');
-                                    fileItem.textContent = currentAppendFilename;
-                                    fileItem.classList.add('current');
-                                    fileItem.addEventListener('click', function (e) {
-                                        e.preventDefault();
-                                        if(manualEditMode) {
-                                            const filename = e.target.textContent;
-                                            currentOpenFilename = filename;
-                                            const fileList = document.getElementById('files-list');
-                                            fileList.querySelectorAll('li').forEach(li => {
-                                                li.classList.remove('current');
-                                            });
-                                            e.target.classList.add('current');
-                                            // output.textContent = fileContents[filename];
-                                            editor.setValue(fileContents[filename]);
-                                        } else {
-                                            alert("Please wait until the app is generated first. Sorry this is a dumb limitation. Will refactor to support this later.");
-                                        }
-                                    });
-                                    fileList.appendChild(fileItem);
+                                    addFileToList(currentAppendFilename);
                                 }
 
                                 const _fileContents = extractFileContents(accumulatedContent);
@@ -690,8 +708,8 @@ Other notes:
                     manualEditMode = true;
                     editor.updateOptions({ readOnly: false });
                 } else {
-                    // output.textContent = 'Error: ' + response.statusText;
-                    editor.setValue('Error: ' + response.statusText);
+                    const responseText = await response.text();
+                    editor.setValue('Error: ' + responseText);
                 }
             }
 
@@ -704,6 +722,11 @@ Other notes:
                 body: JSON.stringify({
                     model: modelName,
                     messages: [{ role: 'user', content: fullprompt }],
+                    // provider: {
+                    //     "order": [
+                    //         "Hyperbolic"
+                    //     ],
+                    // },
                     max_tokens: 4096,
                     temperature: 0,
                     stream: true
@@ -731,7 +754,7 @@ Other notes:
             </head>
             <body>
                 <div id="root"></div>
-                <script type="text/javascript">
+                <script type="module">
                     [[APP_CODE]]
                 <\/script>
             </body>
@@ -905,20 +928,18 @@ Other notes:
                         resolveDir: '',
                         loader: 'jsx',
                     },
-                    define: {
-                        'import.meta.env': "{}",
-                    },
-                    outfile: 'out.js',
+                    // outfile: 'out.js',
                     bundle: true,
-                    format: 'iife',
+                    format: 'esm',
                     minify: false,
                     keepNames: true,
+                    // treeShaking: false,
                     jsx: 'automatic',
                     target: 'es2020',
                     platform: 'browser',
                     plugins: [virtualModules, openartifactPlugin],
                     write: false,
-                    loader: { '.js': 'jsx' }, // Add this line
+                    loader: { '.js': 'jsx' },
                 })
 
                 const output = result.outputFiles[0].text;
@@ -960,6 +981,39 @@ Other notes:
             zip.generateAsync({ type: "blob" }).then(function (content) {
                 saveAs(content, "open-artifact-app.zip");
             });
+        }
+
+        function triggerFileUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        async function uploadZip(event) {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            
+            fileContents = {};
+            const filesList = document.getElementById('files-list');
+            filesList.innerHTML = '';
+            
+            if (file && file.name.endsWith('.zip')) {
+                const zip = await JSZip.loadAsync(file);
+                
+                for (const filename of Object.keys(zip.files)) {
+                    const content = await zip.files[filename].async('text');
+                    // remove first folder prefix  i.e. open-artifact-app/xxx.jsx
+                    const filenameWithoutPrefix = "/"+filename.replace(/^[^\/]+\//, '');
+                    if(filenameWithoutPrefix) {
+                        fileContents[filenameWithoutPrefix] = content;
+                        addFileToList(filenameWithoutPrefix);
+                    }
+                }
+
+                manualEditMode = true;
+                console.log(fileContents);
+                renderGeneratedApp(fileContents);
+                openTab('tab-app');
+            }
         }
 
 
