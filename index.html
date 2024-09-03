@@ -313,7 +313,7 @@
                         <!-- <a href="#" onclick="chooseApi(e, 'anthropic')">Anthropic</a>, -->
                         <a href="#" onclick="chooseApi(event, 'llamacpp')">Llama.cpp</a>,
                         <a href="#" onclick="chooseApi(event, 'ollama')">Ollama</a>,
-                        <a href="#" onclick="chooseApi(event, 'openrouter')">OpenRouter</a>,
+                        <a id="connectButton" href="#" onclick="chooseApi(event, 'openrouter')">OpenRouter</a>,
                         <a href="#" onclick="chooseApi(event, 'groq')">Groq</a>,
                         Claude (coming soon)
                     </div>
@@ -1017,6 +1017,72 @@ Other notes:
         }
 
 
+    // openpixie functions
+    function generateRandomString(length) {
+      const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      let randomString = '';
+      const array = new Uint8Array(length);
+      window.crypto.getRandomValues(array);
+      for (let i = 0; i < length; i++) {
+        randomString += charset[array[i] % charset.length];
+      }
+      return randomString;
+    }
+
+    async function sha256CodeChallenge(input) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    document.getElementById('connectButton').addEventListener('click', async () => {
+      let codeVerifier = generateRandomString(128);
+      sessionStorage.setItem('code_verifier', codeVerifier);
+      const callbackUrl = window.location.origin + window.location.pathname;
+      const codeChallenge = await sha256CodeChallenge(codeVerifier);
+      const authUrl = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(callbackUrl)}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+      window.location.href = authUrl;
+    });
+
+     (async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authCode = urlParams.get('code');
+      let codeVerifier = sessionStorage.getItem('code_verifier');
+
+      if (authCode) {
+        fetch('https://openrouter.ai/api/v1/auth/keys', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            code: authCode,
+            code_verifier: codeVerifier,
+            code_challenge_method: 'S256'
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          const apiEndpoint = document.querySelector('#api-endpoint');
+            const modelName = document.querySelector('#model-name');
+            const apiField = document.querySelector('#key');
+            
+            apiEndpoint.value = 'https://openrouter.ai/api/v1/chat/completions';
+            modelName.value = 'meta-llama/llama-3.1-405b-instruct';
+            apiField.value = data.key;
+          alert('API Key Received: ' + data.key);
+          
+          sessionStorage.removeItem('code_verifier');
+        })
+        .catch((error) => {
+          alert('Error: ' + error);
+          sessionStorage.removeItem('code_verifier');
+        });
+      }
+
+    })();
     </script>
 </body>
 
