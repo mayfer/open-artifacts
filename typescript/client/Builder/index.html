@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+    <title>Tsingtao Output</title>
+    <style>
+        html, body { margin: 0; padding: 0; min-height: 400px; background-color: #f5f5f5; }
+        /* [[APP_CSS]] */
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+    const resizeObserver = new ResizeObserver(entries => {
+      window.parent.postMessage({
+        type: 'resize',
+        height: document.documentElement.scrollHeight
+      }, '*');
+    });
+    resizeObserver.observe(document.body);
+    /* [[APP_CODE]] */
+    </script>
+</body>
+</html>
