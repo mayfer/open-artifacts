@@ -92,14 +92,12 @@ function InstancedCubes() {
   )
 }
 
-console.log(window.innerHeight)
-
 export default function Scene() {
   return (
     <div className="h-screen w-full">
       <Canvas
         camera={{ position: [20, 20, 20], fov: 75 }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100vh' }}
         className="h-full w-full"
       >
         <color attach="background" args={['#000000']} />

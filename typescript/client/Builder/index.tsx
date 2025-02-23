@@ -19,10 +19,9 @@ const Container = styled.div`
 
 const IframeWrapper = styled.iframe`
   width: 100%;
-  height: 100%;
+  height: 100vh;
   border: none;
   display: block;
-  height: auto;
 `;
 
 interface BuilderProps {
@@ -67,7 +66,7 @@ export default class Builder extends Component<BuilderProps, BuilderState> {
     if (event.data.type === 'resize') {
       const height = event.data.height;
       if (this.iframeRef.current) {
-        this.iframeRef.current.style.height = `${height}px`;
+        // this.iframeRef.current.style.height = `${height}px`;
       }
       this.props.onResize?.(height);
     }
@@ -163,8 +162,8 @@ export default class Builder extends Component<BuilderProps, BuilderState> {
           
           const iframe = this.iframeRef.current;
           if (iframe) {
-            iframe.contentWindow?.addEventListener('resize', this.adjustIframeHeight);
-            this.adjustIframeHeight();
+            // iframe.contentWindow?.addEventListener('resize', this.adjustIframeHeight);
+            // this.adjustIframeHeight();
           }
         };
       }
@@ -197,7 +196,7 @@ export default class Builder extends Component<BuilderProps, BuilderState> {
             </StyledSpinner>
           </div>
         )}
-        <IframeWrapper ref={this.iframeRef} height="100%" />
+        <IframeWrapper ref={this.iframeRef} />
       </Container>
     );
   }
